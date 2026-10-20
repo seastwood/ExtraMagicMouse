@@ -66,10 +66,17 @@ ensure_keychain_ready
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-if [[ -f "$BACKUP_P12" ]]; then
-    echo "Restoring signing identity from backup: $BACKUP_P12"
-    cp "$BACKUP_P12" "$TMP/identity.p12"
-else
+# Prefer macOS's bundled LibreSSL: OpenSSL 3 (e.g. Homebrew's, often first on
+# PATH) writes PKCS#12 files with AES/SHA-256 that `security import` rejects as
+# "MAC verification failed". Its -legacy flag restores the old format.
+OPENSSL=/usr/bin/openssl
+[[ -x "$OPENSSL" ]] || OPENSSL=openssl
+P12_LEGACY=()
+if "$OPENSSL" pkcs12 -help 2>&1 | grep -q -- '-legacy'; then
+    P12_LEGACY=(-legacy)
+fi
+
+generate_identity() {
     echo "Generating new self-signed code-signing certificate..."
     cat > "$TMP/openssl.cnf" <<'CNF'
 [req]
@@ -83,20 +90,41 @@ basicConstraints = critical,CA:false
 keyUsage = critical,digitalSignature
 extendedKeyUsage = critical,codeSigning
 CNF
-    openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
+    "$OPENSSL" req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
         -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
         -config "$TMP/openssl.cnf" >/dev/null 2>&1
-    openssl pkcs12 -export -out "$TMP/identity.p12" \
+    "$OPENSSL" pkcs12 -export "${P12_LEGACY[@]}" -out "$TMP/identity.p12" \
         -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
         -name "$CERT_NAME" -passout "pass:$P12_PASS" >/dev/null 2>&1
+}
+
+import_identity() {
+    security import "$TMP/identity.p12" -k "$KEYCHAIN" -P "$P12_PASS" \
+        -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+}
+
+if [[ -f "$BACKUP_P12" ]]; then
+    echo "Restoring signing identity from backup: $BACKUP_P12"
+    cp "$BACKUP_P12" "$TMP/identity.p12"
+    if ! import_identity; then
+        # A backup macOS can't import is useless; set it aside and start over.
+        mv "$BACKUP_P12" "$BACKUP_P12.unreadable"
+        echo "Backup could not be imported (moved to $BACKUP_P12.unreadable)."
+        generate_identity
+        import_identity
+        cp "$TMP/identity.p12" "$BACKUP_P12"
+        chmod 600 "$BACKUP_P12"
+    fi
+else
+    generate_identity
+    import_identity
+    # Back up only after macOS has accepted it.
     mkdir -p "$BACKUP_DIR"
     cp "$TMP/identity.p12" "$BACKUP_P12"
     chmod 600 "$BACKUP_P12"
     echo "Backed up identity to: $BACKUP_P12 (keep this safe)"
 fi
 
-security import "$TMP/identity.p12" -k "$KEYCHAIN" -P "$P12_PASS" \
-    -T /usr/bin/codesign -T /usr/bin/security >/dev/null
 authorize_codesign
 
 if have_identity; then
