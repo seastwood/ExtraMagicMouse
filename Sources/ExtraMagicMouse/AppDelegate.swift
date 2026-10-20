@@ -288,6 +288,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(menu, "Invert Forward/Back", #selector(toggleInvertY(_:)), checked: editing.invertY)
         add(menu, "Block Scrolling While Panning", #selector(toggleBlockScroll(_:)),
             checked: editing.blockScroll)
+        add(menu, "Block Mission Control in Games", #selector(toggleBlockMissionControl(_:)),
+            checked: editing.blockMissionControl)
         add(menu, "Use Built-in Trackpad Too", #selector(toggleBuiltIn(_:)),
             checked: config.includeBuiltInTrackpad)
         menu.addItem(.separator())
@@ -404,6 +406,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleInvertX(_ sender: Any?) { editing.invertX.toggle() }
     @objc private func toggleInvertY(_ sender: Any?) { editing.invertY.toggle() }
     @objc private func toggleBlockScroll(_ sender: Any?) { editing.blockScroll.toggle() }
+    @objc private func toggleBlockMissionControl(_ sender: Any?) { editing.blockMissionControl.toggle() }
 
     @objc private func toggleBuiltIn(_ sender: Any?) {
         config.includeBuiltInTrackpad.toggle()

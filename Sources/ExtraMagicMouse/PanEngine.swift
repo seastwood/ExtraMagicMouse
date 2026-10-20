@@ -151,6 +151,13 @@ final class PanEngine {
         return momentum ? since < 3 : since < 0.3
     }
 
+    /// Whether the Dock's gesture events (Mission Control and friends) should
+    /// be dropped, so a two-finger double-tap stays in the game.
+    func shouldBlockDockGestures() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return settings.blockMissionControl && settings.enabled && appAllowed
+    }
+
     private func panMouseLocked(offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
         let speed = CGFloat(settings.mousePanSpeed)
         var move: CGVector

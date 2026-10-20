@@ -2,7 +2,8 @@ import CoreGraphics
 
 /// An event tap that swallows Magic Mouse scrolling while you pan, so the
 /// game doesn't zoom or scroll at the same time. It also watches for physical
-/// clicks, so a click is never mistaken for a tap gesture.
+/// clicks, so a click is never mistaken for a tap gesture, and can drop the
+/// Dock's gesture events so Mission Control doesn't open mid-game.
 final class ScrollBlocker {
     static let shared = ScrollBlocker()
 
@@ -13,8 +14,9 @@ final class ScrollBlocker {
     /// Needs Accessibility permission; returns quietly if it isn't granted yet.
     func installIfPossible() {
         guard tap == nil else { return }
-        let mask = [CGEventType.scrollWheel, .leftMouseDown, .rightMouseDown]
-            .reduce(CGEventMask(0)) { $0 | CGEventMask(1) << CGEventMask($1.rawValue) }
+        let mask = [CGEventType.scrollWheel.rawValue, CGEventType.leftMouseDown.rawValue,
+                    CGEventType.rightMouseDown.rawValue, dockControlEventType]
+            .reduce(CGEventMask(0)) { $0 | CGEventMask(1) << CGEventMask($1) }
         guard let port = CGEvent.tapCreate(tap: .cgSessionEventTap,
                                            place: .headInsertEventTap,
                                            options: .defaultTap,
@@ -29,7 +31,14 @@ final class ScrollBlocker {
     }
 }
 
+/// The undocumented event type WindowServer uses to hand gestures such as
+/// Mission Control to the Dock (NSEvent.EventType 30, "dock control").
+private let dockControlEventType: UInt32 = 30
+
 private let scrollTapCallback: CGEventTapCallBack = { _, type, event, _ in
+    if type.rawValue == dockControlEventType {
+        return PanEngine.shared.shouldBlockDockGestures() ? nil : Unmanaged.passUnretained(event)
+    }
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = ScrollBlocker.shared.tap { CGEvent.tapEnable(tap: tap, enable: true) }
         return Unmanaged.passUnretained(event)

@@ -95,6 +95,8 @@ struct EngineSettings: Codable, Equatable {
     var invertX = false
     var invertY = false
     var blockScroll = true
+    /// Drop the Dock's Mission Control gesture (two-finger double-tap) in games.
+    var blockMissionControl = true
     /// Pointer speed multiplier for middle-mouse panning.
     var mousePanSpeed = 1.0
     /// Assigned actions by GestureSlot raw value; missing slots use their default.
@@ -123,6 +125,7 @@ struct EngineSettings: Codable, Equatable {
         invertX = c.value(.invertX, default: d.invertX)
         invertY = c.value(.invertY, default: d.invertY)
         blockScroll = c.value(.blockScroll, default: d.blockScroll)
+        blockMissionControl = c.value(.blockMissionControl, default: d.blockMissionControl)
         mousePanSpeed = c.value(.mousePanSpeed, default: d.mousePanSpeed)
         gestures = c.value(.gestures, default: d.gestures)
     }
