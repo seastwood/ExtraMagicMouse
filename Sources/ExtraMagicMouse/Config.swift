@@ -12,19 +12,6 @@ enum KeySet: String, Codable {
     case wasd
 }
 
-enum GlideLength: String, Codable {
-    case off, short, medium, long
-
-    var multiplier: Double {
-        switch self {
-        case .off: return 0
-        case .short: return 0.5
-        case .medium: return 1
-        case .long: return 2
-        }
-    }
-}
-
 enum Scope: String, Codable {
     case listedApps
     case everywhere
@@ -41,8 +28,6 @@ struct EngineSettings: Codable, Equatable {
     var invertX = false
     var invertY = false
     var blockScroll = true
-    /// How long the view keeps moving after a flick.
-    var glide = GlideLength.medium
 
     init() {}
 
@@ -59,7 +44,6 @@ struct EngineSettings: Codable, Equatable {
         invertX = c.value(.invertX, default: d.invertX)
         invertY = c.value(.invertY, default: d.invertY)
         blockScroll = c.value(.blockScroll, default: d.blockScroll)
-        glide = c.value(.glide, default: d.glide)
     }
 }
 

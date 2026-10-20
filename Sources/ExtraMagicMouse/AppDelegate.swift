@@ -221,15 +221,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         submenu(menu, "Sensitivity", sensitivityMenu)
 
-        let glideMenu = NSMenu()
-        for (title, glide) in [("Off", GlideLength.off), ("Short", .short), ("Medium", .medium), ("Long", .long)] {
-            add(glideMenu, title, #selector(setGlide(_:)),
-                checked: config.engine.glide == glide, represented: glide.rawValue)
-        }
-        glideMenu.addItem(.separator())
-        add(glideMenu, "Flick and lift to glide; touch again to stop", nil, enabled: false)
-        submenu(menu, "Flick Glide", glideMenu)
-
         let keysMenu = NSMenu()
         add(keysMenu, "Arrow Keys", #selector(setKeys(_:)),
             checked: config.engine.keys == .arrows, represented: KeySet.arrows.rawValue)
@@ -306,10 +297,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func setSensitivity(_ sender: NSMenuItem) {
         if let index = sender.representedObject as? Int { config.engine.deadzone = Self.sensitivityPresets[index].1 }
-    }
-
-    @objc private func setGlide(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let glide = GlideLength(rawValue: raw) { config.engine.glide = glide }
     }
 
     @objc private func setKeys(_ sender: NSMenuItem) {

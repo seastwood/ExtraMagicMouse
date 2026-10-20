@@ -11,9 +11,6 @@ Lift your fingers and the key is released.
 
 - **Joystick mode** (default): push from where you first touched and hold to keep panning.
 - **Drag mode**: keys are held only while your fingers are moving.
-- **Flick glide**: flick and lift, and the view keeps going for a moment (longer
-  for a harder flick). Put your fingers back down to stop it instantly.
-  Choose Off, Short, Medium or Long.
 - 1-finger or 2-finger trigger, four sensitivity levels, arrow keys or WASD,
   invert either axis.
 - **Only in the games you list** (default), or everywhere.

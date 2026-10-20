@@ -18,16 +18,6 @@ final class PanEngine {
     /// A held key is released at this fraction of the press threshold, so it
     /// doesn't flicker when your finger sits right on the edge.
     private static let releaseHysteresis: CGFloat = 0.7
-    /// Lift-off speed (surface widths per second) is measured over this window.
-    private static let flickWindow = 0.06
-    /// A lift faster than deadzone × this counts as a flick.
-    private static let flickThresholdScale: CGFloat = 30
-    /// Seconds of glide per unit of flick speed, before the length multiplier.
-    private static let glidePerSpeed = 0.2
-    private static let maxGlide = 3.0
-    /// A flick axis counts if it's at least this share of the speed, giving
-    /// eight directions (diagonals within roughly ±22°).
-    private static let diagonalShare: CGFloat = 0.38
 
     private let lock = NSLock()
     private let output = KeyOutput()
@@ -42,12 +32,6 @@ final class PanEngine {
     private var held: Direction = []
     private var lastFrameUptime = 0.0
     private var lastEngagedUptime = -Double.infinity
-    private var history: [(time: Double, point: CGPoint)] = []
-
-    private let glideQueue = DispatchQueue(label: "extramagicmouse.glide")
-    private var glideTimer: DispatchSourceTimer?
-    private var glideID = 0
-    private var gliding: Bool { glideTimer != nil }
 
     func update(settings newSettings: EngineSettings, appAllowed allowed: Bool) {
         lock.lock(); defer { lock.unlock() }
@@ -68,30 +52,21 @@ final class PanEngine {
     func handleFrame(_ touches: UnsafePointer<MTTouch>?, count: Int, timestamp: Double) {
         lock.lock(); defer { lock.unlock() }
         lastFrameUptime = uptime()
-        guard settings.enabled, appAllowed else {
+        guard settings.enabled, appAllowed, let touches else {
             endGestureLocked()
             return
         }
 
-        // A frame with no touches may come with a nil pointer; that's zero
-        // fingers, not a reason to cancel a glide.
         var sumX: CGFloat = 0, sumY: CGFloat = 0, fingers = 0
-        if let touches {
-            for i in 0..<count {
-                let touch = touches[i]
-                guard touch.state == 4 || touch.state == 5 else { continue }
-                sumX += CGFloat(touch.normalized.position.x)
-                sumY += CGFloat(touch.normalized.position.y)
-                fingers += 1
-            }
-        }
-        if gliding {
-            // Putting fingers back down catches the view, like a spinning globe.
-            guard fingers >= settings.fingers else { return }
-            stopGlideLocked()
+        for i in 0..<count {
+            let touch = touches[i]
+            guard touch.state == 4 || touch.state == 5 else { continue }
+            sumX += CGFloat(touch.normalized.position.x)
+            sumY += CGFloat(touch.normalized.position.y)
+            fingers += 1
         }
         guard fingers == settings.fingers else {
-            if engaged { liftLocked() }
+            endGestureLocked()
             return
         }
 
@@ -102,11 +77,8 @@ final class PanEngine {
             lastPoint = point
             lastTimestamp = timestamp
             velocity = .zero
-            history.removeAll()
         }
         lastEngagedUptime = uptime()
-        history.append((timestamp, point))
-        history.removeAll { timestamp - $0.time > Self.flickWindow * 2 }
 
         let vector: CGVector
         var threshold = CGFloat(settings.deadzone)
@@ -131,8 +103,6 @@ final class PanEngine {
     /// Called every ~50 ms so a vanished device can never leave a key held.
     func watchdog() {
         lock.lock(); defer { lock.unlock() }
-        // No frames arrive once fingers are off, so a glide ends on its own timer.
-        guard !gliding else { return }
         if (engaged || !held.isEmpty) && uptime() - lastFrameUptime > Self.frameTimeout {
             endGestureLocked()
         }
@@ -143,7 +113,7 @@ final class PanEngine {
     func shouldBlockScroll(momentum: Bool) -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard settings.blockScroll, settings.enabled, appAllowed else { return false }
-        if engaged || gliding { return true }
+        if engaged { return true }
         let since = uptime() - lastEngagedUptime
         return momentum ? since < 3 : since < 0.3
     }
@@ -160,67 +130,7 @@ final class PanEngine {
         return result
     }
 
-    /// Fingers lifted mid-gesture: glide on if it was a flick, else stop.
-    private func liftLocked() {
-        let flick = flickVelocityLocked()
-        endGestureLocked()
-        guard settings.glide != .off, let flick else { return }
-        let speed = hypot(flick.dx, flick.dy)
-        guard speed >= CGFloat(settings.deadzone) * Self.flickThresholdScale else { return }
-        let direction = flickDirection(flick, speed: speed)
-        guard !direction.isEmpty else { return }
-        let length = settings.glide.multiplier
-        let duration = min(Double(speed) * Self.glidePerSpeed * length, Self.maxGlide * length)
-        startGlideLocked(direction, duration: duration)
-    }
-
-    private func flickVelocityLocked() -> CGVector? {
-        guard let last = history.last,
-              let first = history.first(where: { last.time - $0.time <= Self.flickWindow })
-        else { return nil }
-        let dt = CGFloat(last.time - first.time)
-        guard dt > 0.015 else { return nil }
-        return CGVector(dx: (last.point.x - first.point.x) / dt, dy: (last.point.y - first.point.y) / dt)
-    }
-
-    private func flickDirection(_ v: CGVector, speed: CGFloat) -> Direction {
-        let dx = settings.invertX ? -v.dx : v.dx
-        let dy = settings.invertY ? -v.dy : v.dy
-        let minimum = speed * Self.diagonalShare
-        var result: Direction = []
-        if abs(dx) >= minimum { result.insert(dx > 0 ? .right : .left) }
-        if abs(dy) >= minimum { result.insert(dy > 0 ? .up : .down) }
-        return result
-    }
-
-    /// Holds the flick's keys at full speed, then lets go after `duration`.
-    private func startGlideLocked(_ direction: Direction, duration: Double) {
-        glideID += 1
-        let id = glideID
-        let timer = DispatchSource.makeTimerSource(queue: glideQueue)
-        timer.schedule(deadline: .now() + duration)
-        timer.setEventHandler { [weak self] in self?.glideEnded(id) }
-        glideTimer = timer
-        setHeldLocked(direction)
-        timer.resume()
-    }
-
-    private func glideEnded(_ id: Int) {
-        lock.lock(); defer { lock.unlock() }
-        // Ignore a timer that a touch already cancelled and replaced.
-        guard id == glideID else { return }
-        stopGlideLocked()
-    }
-
-    private func stopGlideLocked() {
-        guard let timer = glideTimer else { return }
-        timer.cancel()
-        glideTimer = nil
-        setHeldLocked([])
-    }
-
     private func endGestureLocked() {
-        stopGlideLocked()
         if engaged {
             engaged = false
             lastEngagedUptime = uptime()
