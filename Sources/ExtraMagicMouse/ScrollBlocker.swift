@@ -1,9 +1,12 @@
+import CMultitouch
 import CoreGraphics
+import os
 
 /// An event tap that swallows Magic Mouse scrolling while you pan, so the
 /// game doesn't zoom or scroll at the same time. It also watches for physical
 /// clicks, so a click is never mistaken for a tap gesture, and can drop the
-/// Dock's gesture events so Mission Control doesn't open mid-game.
+/// Dock's Mission Control gesture so it doesn't open mid-game (swiping between
+/// full-screen apps still works).
 final class ScrollBlocker {
     static let shared = ScrollBlocker()
 
@@ -35,9 +38,30 @@ final class ScrollBlocker {
 /// Mission Control to the Dock (NSEvent.EventType 30, "dock control").
 private let dockControlEventType: UInt32 = 30
 
+/// Undocumented dock-control fields, as used by tools that synthesise these
+/// gestures: the HID gesture type (23 = dock swipe), the swipe's axis
+/// (1 = horizontal, 2 = vertical) and its direction flag bits.
+private let gestureHIDTypeField: UInt32 = 110
+private let swipeMotionField: UInt32 = 123
+private let swipeFlagBitsField: UInt32 = 135
+private let dockSwipeHIDType: Int64 = 23
+
+private let dockLog = Logger(subsystem: "com.seth.extramagicmouse", category: "dock")
+
+/// A horizontal dock swipe is "swipe between full-screen apps"; that one is
+/// left alone. Everything else (Mission Control, App Exposé…) is blocked.
+private func isHorizontalDockSwipe(_ event: CGEvent) -> Bool {
+    let hidType = EMMEventIntegerField(event, gestureHIDTypeField)
+    let motion = EMMEventIntegerField(event, swipeMotionField)
+    let flagBits = EMMEventIntegerField(event, swipeFlagBitsField)
+    dockLog.debug("dock event hidType=\(hidType) motion=\(motion) flagBits=\(flagBits)")
+    return hidType == dockSwipeHIDType && (motion == 1 || (motion == 0 && flagBits == 1))
+}
+
 private let scrollTapCallback: CGEventTapCallBack = { _, type, event, _ in
     if type.rawValue == dockControlEventType {
-        return PanEngine.shared.shouldBlockDockGestures() ? nil : Unmanaged.passUnretained(event)
+        let block = PanEngine.shared.shouldBlockDockGestures() && !isHorizontalDockSwipe(event)
+        return block ? nil : Unmanaged.passUnretained(event)
     }
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = ScrollBlocker.shared.tap { CGEvent.tapEnable(tap: tap, enable: true) }

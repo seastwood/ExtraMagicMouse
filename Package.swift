@@ -9,7 +9,7 @@ let package = Package(
         // (loaded at runtime with dlopen, so nothing private is linked).
         .target(
             name: "CMultitouch",
-            linkerSettings: [.linkedFramework("CoreFoundation")]
+            linkerSettings: [.linkedFramework("CoreFoundation"), .linkedFramework("CoreGraphics")]
         ),
         .executableTarget(
             name: "ExtraMagicMouse",

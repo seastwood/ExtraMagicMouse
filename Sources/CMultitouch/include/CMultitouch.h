@@ -2,6 +2,7 @@
 #define CMULTITOUCH_H
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -51,5 +52,9 @@ int EMMMultitouchDeviceCount(void);
 int EMMMultitouchStartAll(MTContactCallbackFunction callback, bool includeBuiltIn);
 
 void EMMMultitouchStopAll(void);
+
+// Reads an undocumented integer field of an event (Swift's CGEventField only
+// covers the documented ones). Used to tell Dock gestures apart.
+int64_t EMMEventIntegerField(CGEventRef event, uint32_t field);
 
 #endif
