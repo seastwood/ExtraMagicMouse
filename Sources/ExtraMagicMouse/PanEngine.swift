@@ -1,4 +1,5 @@
 import CMultitouch
+import CoreGraphics
 import Foundation
 
 /// Turns raw Magic Mouse touch frames into panning (held keys or a middle-mouse
