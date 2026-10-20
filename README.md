@@ -10,14 +10,30 @@ Lift your fingers and the key is released.
 ## Features
 
 - **Joystick mode** (default): push from where you first touched and hold to keep panning.
-- **Drag mode**: keys are held only while your fingers are moving.
-- 1-finger or 2-finger trigger, four sensitivity levels, arrow keys or WASD,
-  invert either axis.
+- **Drag mode**: panning happens only while your fingers are moving.
+- **Pan With**: arrow keys, WASD, or **Middle Mouse Drag**, which holds the middle button
+  and moves the pointer for games that let you grab and drag the map. In Joystick
+  mode, middle-mouse panning works like an analog stick: push further to pan faster.
+  The pointer goes back where it started when you lift.
+- **Fast Pan**: push far toward the edge of the mouse and it also holds Shift, Control,
+  Option, Command or any key you pick, for games with a "pan faster" key.
+- **Gestures**: each can send a key (any key or combination, like ⌃1), a middle click,
+  or a scroll:
+  - Two-finger tap (off by default)
+  - Three-finger tap (default: middle click)
+  - Left-edge and right-edge one-finger tap (off by default)
+  - Pinch in / out (default: scroll down / up, which zooms in most games)
+
+  A real click is never mistaken for a tap, and fingers resting on the mouse
+  don't block a tap.
+- **Per-game settings**: switch to a game and turn on **Own Settings for "‹game›"**.
+  Every setting in the menu then applies to that game only.
+- 1-finger or 2-finger panning, four sensitivity levels, invert either direction.
 - **Only in the games you list** (default), or everywhere.
-- Blocks Magic Mouse scrolling while you pan, so the game doesn't zoom at the same time.
-  One-finger scrolling still zooms when 2-finger panning is selected.
+- Blocks Magic Mouse scrolling while you pan or pinch, so the game doesn't zoom at the same time.
 - **⌃⌥M** turns it on or off with a sound, so you can toggle it inside a full-screen game.
-- Releases keys automatically if the mouse disconnects or sleeps mid-pan, so keys don't get stuck.
+- Releases keys and the mouse button automatically if the mouse disconnects or sleeps
+  mid-pan, so nothing gets stuck.
 - Launch at Login.
 
 ## Build & install
@@ -45,7 +61,9 @@ with it, macOS keeps your Accessibility permission across rebuilds.
 
 ## Tips
 
-- If forward pans the wrong way, use **Invert Forward/Back** (or Left/Right).
+- If forward pans the wrong way, use **Invert Forward/Back** (or Left/Right). This also
+  flips Middle Mouse Drag, for games where dragging moves the map the other way.
+- **Custom Key…** opens a small window. Press the key you want, or click Cancel.
 - To tune how far you push before panning starts, use **Sensitivity**. High means a tiny push.
 - Games under CrossOver/Whisky/Wine are listed under the wrapper app's name.
 

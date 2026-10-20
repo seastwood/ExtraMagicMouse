@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let sensitivityPresets: [(String, Double)] = [
         ("High", 0.03), ("Medium", 0.05), ("Low", 0.08), ("Very Low", 0.12),
     ]
+    private static let mouseSpeedPresets: [(String, Double)] = [
+        ("Slow", 0.5), ("Medium", 1), ("Fast", 2), ("Very Fast", 4),
+    ]
 
     private var statusItem: NSStatusItem!
     private var config = Config.load() {
@@ -70,8 +73,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return config.scope == .everywhere || config.games.contains { $0.bundleID == id }
     }
 
+    private func gameIndex(_ app: Game?) -> Int? {
+        guard let id = app?.bundleID else { return nil }
+        return config.games.firstIndex { $0.bundleID == id }
+    }
+
+    /// What the engine runs with: the front game's own settings if it has them.
+    private var effectiveSettings: EngineSettings {
+        var settings = gameIndex(frontApp).flatMap { config.games[$0].custom } ?? config.engine
+        settings.enabled = config.engine.enabled
+        return settings
+    }
+
+    /// What the menu edits: the last-used game's own settings if it has them,
+    /// otherwise the defaults every other game uses.
+    private var editing: EngineSettings {
+        get { gameIndex(lastOtherApp).flatMap { config.games[$0].custom } ?? config.engine }
+        set {
+            if let i = gameIndex(lastOtherApp), config.games[i].custom != nil {
+                config.games[i].custom = newValue
+            } else {
+                config.engine = newValue
+            }
+        }
+    }
+
     private func applyConfig() {
-        PanEngine.shared.update(settings: config.engine, appAllowed: appAllowed)
+        PanEngine.shared.update(settings: effectiveSettings, appAllowed: appAllowed)
         updateIcon()
     }
 
@@ -193,45 +221,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             add(gamesMenu, "Click a game to remove it:", nil, enabled: false)
             for game in config.games {
-                add(gamesMenu, game.name, #selector(removeGame(_:)), checked: true, represented: game.bundleID)
+                let title = game.custom == nil ? game.name : "\(game.name) (own settings)"
+                add(gamesMenu, title, #selector(removeGame(_:)), checked: true, represented: game.bundleID)
             }
         }
         submenu(menu, "Games", gamesMenu)
+        if let i = gameIndex(lastOtherApp) {
+            let game = config.games[i]
+            add(menu, "Own Settings for “\(game.name)”", #selector(toggleOwnSettings(_:)),
+                checked: game.custom != nil)
+            add(menu, game.custom == nil ? "Settings below: all games" : "Settings below: \(game.name) only",
+                nil, enabled: false)
+        }
         menu.addItem(.separator())
 
         // Behaviour
         let modeMenu = NSMenu()
         add(modeMenu, "Joystick — push and hold to keep panning", #selector(setMode(_:)),
-            checked: config.engine.mode == .joystick, represented: PanMode.joystick.rawValue)
+            checked: editing.mode == .joystick, represented: PanMode.joystick.rawValue)
         add(modeMenu, "Drag — pan only while fingers move", #selector(setMode(_:)),
-            checked: config.engine.mode == .drag, represented: PanMode.drag.rawValue)
+            checked: editing.mode == .drag, represented: PanMode.drag.rawValue)
         submenu(menu, "Mode", modeMenu)
 
         let fingersMenu = NSMenu()
         for n in 1...2 {
             add(fingersMenu, n == 1 ? "1 Finger" : "2 Fingers", #selector(setFingers(_:)),
-                checked: config.engine.fingers == n, represented: n)
+                checked: editing.fingers == n, represented: n)
         }
         submenu(menu, "Fingers", fingersMenu)
 
         let sensitivityMenu = NSMenu()
         for (index, preset) in Self.sensitivityPresets.enumerated() {
             add(sensitivityMenu, preset.0, #selector(setSensitivity(_:)),
-                checked: abs(config.engine.deadzone - preset.1) < 0.001, represented: index)
+                checked: abs(editing.deadzone - preset.1) < 0.001, represented: index)
         }
         submenu(menu, "Sensitivity", sensitivityMenu)
 
         let keysMenu = NSMenu()
         add(keysMenu, "Arrow Keys", #selector(setKeys(_:)),
-            checked: config.engine.keys == .arrows, represented: KeySet.arrows.rawValue)
+            checked: editing.keys == .arrows, represented: KeySet.arrows.rawValue)
         add(keysMenu, "W A S D", #selector(setKeys(_:)),
-            checked: config.engine.keys == .wasd, represented: KeySet.wasd.rawValue)
-        submenu(menu, "Keys", keysMenu)
+            checked: editing.keys == .wasd, represented: KeySet.wasd.rawValue)
+        add(keysMenu, "Middle Mouse Drag", #selector(setKeys(_:)),
+            checked: editing.keys == .middleMouse, represented: KeySet.middleMouse.rawValue)
+        keysMenu.addItem(.separator())
+        let speedMenu = NSMenu()
+        for (index, preset) in Self.mouseSpeedPresets.enumerated() {
+            add(speedMenu, preset.0, #selector(setMouseSpeed(_:)),
+                checked: abs(editing.mousePanSpeed - preset.1) < 0.001, represented: index)
+        }
+        submenu(keysMenu, "Middle Mouse Speed", speedMenu)
+        submenu(menu, "Pan With", keysMenu)
 
-        add(menu, "Invert Left/Right", #selector(toggleInvertX(_:)), checked: config.engine.invertX)
-        add(menu, "Invert Forward/Back", #selector(toggleInvertY(_:)), checked: config.engine.invertY)
+        let fastMenu = actionMenu(for: .fastPan)
+        fastMenu.insertItem(withTitle: "Push far to also hold:", action: nil, keyEquivalent: "", at: 0)
+        fastMenu.items[0].isEnabled = false
+        submenu(menu, "Fast Pan: \(editing.action(.fastPan).name)", fastMenu)
+
+        let gesturesMenu = NSMenu()
+        for slot in GestureSlot.gestures {
+            submenu(gesturesMenu, "\(slot.title): \(editing.action(slot).name)", actionMenu(for: slot))
+        }
+        submenu(menu, "Gestures", gesturesMenu)
+
+        add(menu, "Invert Left/Right", #selector(toggleInvertX(_:)), checked: editing.invertX)
+        add(menu, "Invert Forward/Back", #selector(toggleInvertY(_:)), checked: editing.invertY)
         add(menu, "Block Scrolling While Panning", #selector(toggleBlockScroll(_:)),
-            checked: config.engine.blockScroll)
+            checked: editing.blockScroll)
         add(menu, "Use Built-in Trackpad Too", #selector(toggleBuiltIn(_:)),
             checked: config.includeBuiltInTrackpad)
         menu.addItem(.separator())
@@ -240,6 +296,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             checked: SMAppService.mainApp.status == .enabled)
         add(menu, "Reconnect Devices", #selector(reconnect(_:)))
         add(menu, "Quit Extra Magic Mouse", #selector(quit(_:)))
+    }
+
+    private func actionMenu(for slot: GestureSlot) -> NSMenu {
+        let menu = NSMenu()
+        let current = editing.action(slot)
+        for choice in slot.choices {
+            add(menu, choice.name, #selector(chooseAction(_:)), checked: choice == current,
+                represented: ActionChoice(slot: slot, action: choice))
+        }
+        menu.addItem(.separator())
+        if !slot.choices.contains(current) {
+            add(menu, current.name, #selector(chooseAction(_:)), checked: true,
+                represented: ActionChoice(slot: slot, action: current))
+        }
+        add(menu, "Custom Key…", #selector(chooseAction(_:)), represented: ActionChoice(slot: slot, action: nil))
+        return menu
     }
 
     @discardableResult
@@ -288,24 +360,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func setMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let mode = PanMode(rawValue: raw) { config.engine.mode = mode }
+        if let raw = sender.representedObject as? String, let mode = PanMode(rawValue: raw) { editing.mode = mode }
     }
 
     @objc private func setFingers(_ sender: NSMenuItem) {
-        if let n = sender.representedObject as? Int { config.engine.fingers = n }
+        if let n = sender.representedObject as? Int { editing.fingers = n }
     }
 
     @objc private func setSensitivity(_ sender: NSMenuItem) {
-        if let index = sender.representedObject as? Int { config.engine.deadzone = Self.sensitivityPresets[index].1 }
+        if let index = sender.representedObject as? Int { editing.deadzone = Self.sensitivityPresets[index].1 }
+    }
+
+    @objc private func setMouseSpeed(_ sender: NSMenuItem) {
+        if let index = sender.representedObject as? Int { editing.mousePanSpeed = Self.mouseSpeedPresets[index].1 }
+    }
+
+    @objc private func toggleOwnSettings(_ sender: Any?) {
+        guard let i = gameIndex(lastOtherApp) else { return }
+        // Start from the current defaults, so turning it on changes nothing yet.
+        config.games[i].custom = config.games[i].custom == nil ? config.engine : nil
+    }
+
+    @objc private func chooseAction(_ sender: NSMenuItem) {
+        guard let choice = sender.representedObject as? ActionChoice else { return }
+        if let action = choice.action {
+            editing.setAction(action, for: choice.slot)
+        } else {
+            // Ask once the menu has closed.
+            perform(#selector(captureKey(_:)), with: choice, afterDelay: 0)
+        }
+    }
+
+    @objc private func captureKey(_ choice: ActionChoice) {
+        if let action = KeyCapture.run(for: choice.slot) {
+            editing.setAction(action, for: choice.slot)
+        }
     }
 
     @objc private func setKeys(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let keys = KeySet(rawValue: raw) { config.engine.keys = keys }
+        if let raw = sender.representedObject as? String, let keys = KeySet(rawValue: raw) { editing.keys = keys }
     }
 
-    @objc private func toggleInvertX(_ sender: Any?) { config.engine.invertX.toggle() }
-    @objc private func toggleInvertY(_ sender: Any?) { config.engine.invertY.toggle() }
-    @objc private func toggleBlockScroll(_ sender: Any?) { config.engine.blockScroll.toggle() }
+    @objc private func toggleInvertX(_ sender: Any?) { editing.invertX.toggle() }
+    @objc private func toggleInvertY(_ sender: Any?) { editing.invertY.toggle() }
+    @objc private func toggleBlockScroll(_ sender: Any?) { editing.blockScroll.toggle() }
 
     @objc private func toggleBuiltIn(_ sender: Any?) {
         config.includeBuiltInTrackpad.toggle()
@@ -330,4 +428,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func reconnect(_ sender: Any?) { restartDevices() }
 
     @objc private func quit(_ sender: Any?) { NSApp.terminate(nil) }
+}
+
+/// Menu payload for a gesture's action choice; `action` nil means "Custom Key…".
+final class ActionChoice: NSObject {
+    let slot: GestureSlot
+    let action: Action?
+
+    init(slot: GestureSlot, action: Action?) {
+        self.slot = slot
+        self.action = action
+    }
 }

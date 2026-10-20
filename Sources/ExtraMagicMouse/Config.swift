@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 enum PanMode: String, Codable {
@@ -7,14 +8,80 @@ enum PanMode: String, Codable {
     case drag
 }
 
+/// What panning drives.
 enum KeySet: String, Codable {
     case arrows
     case wasd
+    /// Hold the middle mouse button and move the pointer (grab-the-map panning).
+    case middleMouse
 }
 
 enum Scope: String, Codable {
     case listedApps
     case everywhere
+}
+
+/// Something a gesture can do.
+struct Action: Codable, Equatable {
+    enum Kind: String, Codable {
+        case none, key, middleClick, scrollUp, scrollDown
+    }
+
+    var kind: Kind
+    var keyCode: UInt16 = 0
+    /// CGEventFlags raw value held with the key (⌃⌥⇧⌘).
+    var modifiers: UInt64 = 0
+    var name: String
+
+    static let none = Action(kind: .none, name: "None")
+    static let middleClick = Action(kind: .middleClick, name: "Middle Click")
+    static let scrollUp = Action(kind: .scrollUp, name: "Scroll Up")
+    static let scrollDown = Action(kind: .scrollDown, name: "Scroll Down")
+
+    static func key(_ code: UInt16, _ name: String, modifiers: CGEventFlags = []) -> Action {
+        Action(kind: .key, keyCode: code, modifiers: modifiers.rawValue, name: name)
+    }
+}
+
+/// Every gesture (plus the fast-pan key) that can be assigned an action.
+enum GestureSlot: String, CaseIterable {
+    case twoFingerTap, threeFingerTap, leftEdgeTap, rightEdgeTap, pinchIn, pinchOut, fastPan
+
+    static let gestures: [GestureSlot] = [.twoFingerTap, .threeFingerTap, .leftEdgeTap, .rightEdgeTap, .pinchIn, .pinchOut]
+
+    var title: String {
+        switch self {
+        case .twoFingerTap: return "Two-Finger Tap"
+        case .threeFingerTap: return "Three-Finger Tap"
+        case .leftEdgeTap: return "Left-Edge Tap"
+        case .rightEdgeTap: return "Right-Edge Tap"
+        case .pinchIn: return "Pinch In"
+        case .pinchOut: return "Pinch Out"
+        case .fastPan: return "Fast Pan"
+        }
+    }
+
+    var defaultAction: Action {
+        switch self {
+        // Two-finger tap starts unassigned: briefly lifting your pan fingers
+        // could otherwise fire it by accident.
+        case .threeFingerTap: return .middleClick
+        case .pinchIn: return .scrollDown
+        case .pinchOut: return .scrollUp
+        case .twoFingerTap, .leftEdgeTap, .rightEdgeTap, .fastPan: return .none
+        }
+    }
+
+    /// The ready-made choices in the menu (any other key via "Custom Key…").
+    var choices: [Action] {
+        switch self {
+        case .fastPan:
+            return [.none, .key(56, "Shift"), .key(59, "Control"), .key(58, "Option"), .key(55, "Command")]
+        default:
+            return [.none, .middleClick, .key(49, "Space"), .key(48, "Tab"), .key(53, "Escape"),
+                    .key(36, "Return"), .key(51, "Delete"), .key(115, "Home"), .scrollUp, .scrollDown]
+        }
+    }
 }
 
 /// Everything the touch engine needs; copied to it whenever it changes.
@@ -28,6 +95,18 @@ struct EngineSettings: Codable, Equatable {
     var invertX = false
     var invertY = false
     var blockScroll = true
+    /// Pointer speed multiplier for middle-mouse panning.
+    var mousePanSpeed = 1.0
+    /// Assigned actions by GestureSlot raw value; missing slots use their default.
+    var gestures: [String: Action] = [:]
+
+    func action(_ slot: GestureSlot) -> Action {
+        gestures[slot.rawValue] ?? slot.defaultAction
+    }
+
+    mutating func setAction(_ action: Action, for slot: GestureSlot) {
+        gestures[slot.rawValue] = action
+    }
 
     init() {}
 
@@ -44,12 +123,25 @@ struct EngineSettings: Codable, Equatable {
         invertX = c.value(.invertX, default: d.invertX)
         invertY = c.value(.invertY, default: d.invertY)
         blockScroll = c.value(.blockScroll, default: d.blockScroll)
+        mousePanSpeed = c.value(.mousePanSpeed, default: d.mousePanSpeed)
+        gestures = c.value(.gestures, default: d.gestures)
     }
 }
 
 struct Game: Codable, Equatable {
     var bundleID: String
     var name: String
+    /// This game's own settings; nil means it uses the defaults.
+    var custom: EngineSettings? = nil
+}
+
+extension Game {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        bundleID = try c.decode(String.self, forKey: .bundleID)
+        name = c.value(.name, default: bundleID)
+        custom = (try? c.decodeIfPresent(EngineSettings.self, forKey: .custom)) ?? nil
+    }
 }
 
 struct Config: Codable {
