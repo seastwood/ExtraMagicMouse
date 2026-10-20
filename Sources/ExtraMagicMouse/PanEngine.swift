@@ -25,9 +25,6 @@ final class PanEngine {
     /// Seconds of glide per unit of flick speed, before the length multiplier.
     private static let glidePerSpeed = 0.2
     private static let maxGlide = 3.0
-    /// While slowing down, keys are pulsed with this period; the "on" share
-    /// of each pulse shrinks to zero, which games see as decelerating.
-    private static let pulsePeriod = 0.06
     /// A flick axis counts if it's at least this share of the speed, giving
     /// eight directions (diagonals within roughly ±22°).
     private static let diagonalShare: CGFloat = 0.38
@@ -49,9 +46,7 @@ final class PanEngine {
 
     private let glideQueue = DispatchQueue(label: "extramagicmouse.glide")
     private var glideTimer: DispatchSourceTimer?
-    private var glideDirection: Direction = []
-    private var glideStart = 0.0
-    private var glideDuration = 0.0
+    private var glideID = 0
     private var gliding: Bool { glideTimer != nil }
 
     func update(settings newSettings: EngineSettings, appAllowed allowed: Bool) {
@@ -198,37 +193,29 @@ final class PanEngine {
         return result
     }
 
+    /// Holds the flick's keys at full speed, then lets go after `duration`.
     private func startGlideLocked(_ direction: Direction, duration: Double) {
-        glideDirection = direction
-        glideStart = uptime()
-        glideDuration = duration
+        glideID += 1
+        let id = glideID
         let timer = DispatchSource.makeTimerSource(queue: glideQueue)
-        timer.schedule(deadline: .now(), repeating: .milliseconds(5))
-        timer.setEventHandler { [weak self] in self?.glideTick() }
+        timer.schedule(deadline: .now() + duration)
+        timer.setEventHandler { [weak self] in self?.glideEnded(id) }
         glideTimer = timer
         setHeldLocked(direction)
         timer.resume()
     }
 
-    private func glideTick() {
+    private func glideEnded(_ id: Int) {
         lock.lock(); defer { lock.unlock() }
-        guard gliding else { return }
-        let t = uptime() - glideStart
-        guard t < glideDuration else {
-            stopGlideLocked()
-            return
-        }
-        guard settings.glideSlowsDown else { return }
-        let duty = 1 - t / glideDuration
-        let phase = t.truncatingRemainder(dividingBy: Self.pulsePeriod) / Self.pulsePeriod
-        setHeldLocked(phase < duty ? glideDirection : [])
+        // Ignore a timer that a touch already cancelled and replaced.
+        guard id == glideID else { return }
+        stopGlideLocked()
     }
 
     private func stopGlideLocked() {
         guard let timer = glideTimer else { return }
         timer.cancel()
         glideTimer = nil
-        glideDirection = []
         setHeldLocked([])
     }
 

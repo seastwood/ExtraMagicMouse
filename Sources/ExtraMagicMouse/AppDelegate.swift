@@ -227,8 +227,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 checked: config.engine.glide == glide, represented: glide.rawValue)
         }
         glideMenu.addItem(.separator())
-        add(glideMenu, "Slow Down Gradually", #selector(toggleGlideSlowsDown(_:)),
-            checked: config.engine.glideSlowsDown)
         add(glideMenu, "Flick and lift to glide; touch again to stop", nil, enabled: false)
         submenu(menu, "Flick Glide", glideMenu)
 
@@ -313,8 +311,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func setGlide(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let glide = GlideLength(rawValue: raw) { config.engine.glide = glide }
     }
-
-    @objc private func toggleGlideSlowsDown(_ sender: Any?) { config.engine.glideSlowsDown.toggle() }
 
     @objc private func setKeys(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let keys = KeySet(rawValue: raw) { config.engine.keys = keys }

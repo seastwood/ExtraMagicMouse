@@ -43,8 +43,6 @@ struct EngineSettings: Codable, Equatable {
     var blockScroll = true
     /// How long the view keeps moving after a flick.
     var glide = GlideLength.medium
-    /// Pulse the keys so a glide decelerates instead of stopping dead.
-    var glideSlowsDown = true
 
     init() {}
 
@@ -62,7 +60,6 @@ struct EngineSettings: Codable, Equatable {
         invertY = c.value(.invertY, default: d.invertY)
         blockScroll = c.value(.blockScroll, default: d.blockScroll)
         glide = c.value(.glide, default: d.glide)
-        glideSlowsDown = c.value(.glideSlowsDown, default: d.glideSlowsDown)
     }
 }
 
