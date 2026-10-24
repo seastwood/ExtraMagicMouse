@@ -261,13 +261,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             checked: editing.keys == .wasd, represented: KeySet.wasd.rawValue)
         add(keysMenu, "Middle Mouse Drag", #selector(setKeys(_:)),
             checked: editing.keys == .middleMouse, represented: KeySet.middleMouse.rawValue)
+        add(keysMenu, "Right Mouse Drag", #selector(setKeys(_:)),
+            checked: editing.keys == .rightMouse, represented: KeySet.rightMouse.rawValue)
         keysMenu.addItem(.separator())
         let speedMenu = NSMenu()
         for (index, preset) in Self.mouseSpeedPresets.enumerated() {
             add(speedMenu, preset.0, #selector(setMouseSpeed(_:)),
                 checked: abs(editing.mousePanSpeed - preset.1) < 0.001, represented: index)
         }
-        submenu(keysMenu, "Middle Mouse Speed", speedMenu)
+        submenu(keysMenu, "Mouse Drag Speed", speedMenu)
         submenu(menu, "Pan With", keysMenu)
 
         let fastMenu = actionMenu(for: .fastPan)

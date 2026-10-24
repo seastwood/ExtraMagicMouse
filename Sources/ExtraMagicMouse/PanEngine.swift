@@ -122,8 +122,8 @@ final class PanEngine {
         let offset = CGVector(dx: point.x - origin.x, dy: point.y - origin.y)
         let threshold = CGFloat(settings.deadzone)
 
-        if settings.keys == .middleMouse {
-            panMouseLocked(offset: offset, step: step, dt: dt, threshold: threshold)
+        if let button = settings.keys.dragButton {
+            panMouseLocked(button: button, offset: offset, step: step, dt: dt, threshold: threshold)
         } else {
             let vector = settings.mode == .joystick ? offset : velocity
             let limit = settings.mode == .joystick ? threshold : threshold * Self.dragThresholdScale
@@ -158,7 +158,7 @@ final class PanEngine {
         return settings.blockMissionControl && settings.enabled && appAllowed
     }
 
-    private func panMouseLocked(offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
+    private func panMouseLocked(button: CGMouseButton, offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
         let speed = CGFloat(settings.mousePanSpeed)
         var move: CGVector
         switch settings.mode {
@@ -176,7 +176,7 @@ final class PanEngine {
         if settings.invertX { move.dx = -move.dx }
         if settings.invertY { move.dy = -move.dy }
         guard move.dx != 0 || move.dy != 0 else { return }
-        mouse.begin()
+        mouse.begin(button: button)
         // Touch y grows away from you; screen y grows downward.
         mouse.move(by: CGVector(dx: move.dx, dy: -move.dy))
     }

@@ -15,10 +15,10 @@ Lift your fingers and the key is released.
 
 - **Joystick mode** (default): push from where you first touched and hold to keep panning.
 - **Drag mode**: panning happens only while your fingers are moving.
-- **Pan With**: arrow keys, WASD, or **Middle Mouse Drag**, which holds the middle button
-  and moves the pointer for games that let you grab and drag the map. In Joystick
-  mode, middle-mouse panning works like an analog stick: push further to pan faster.
-  The pointer goes back where it started when you lift.
+- **Pan With**: arrow keys, WASD, **Middle Mouse Drag** or **Right Mouse Drag**, which hold
+  that button and move the pointer for games that let you grab and drag the map. In Joystick
+  mode, mouse-drag panning works like an analog stick: push further to pan faster.
+  The pointer goes back where it started when you lift. **Mouse Drag Speed** sets how fast.
 - **Fast Pan**: push far toward the edge of the mouse and it also holds Shift, Control,
   Option, Command or any key you pick, for games with a "pan faster" key.
 - **Gestures**: each can send a key (any key or combination, like ⌃1), a middle click,
@@ -91,7 +91,7 @@ with it, macOS keeps your Accessibility permission across rebuilds.
 ## Tips
 
 - If forward pans the wrong way, use **Invert Forward/Back** (or Left/Right). This also
-  flips Middle Mouse Drag, for games where dragging moves the map the other way.
+  flips Middle and Right Mouse Drag, for games where dragging moves the map the other way.
 - **Custom Key…** opens a small window. Press the key you want, or click Cancel.
 - To tune how far you push before panning starts, use **Sensitivity**. High means a tiny push.
 - Games under CrossOver/Whisky/Wine are listed under the wrapper app's name.

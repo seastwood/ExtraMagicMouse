@@ -1,20 +1,24 @@
 import CoreGraphics
 
-/// Pans by holding the middle mouse button and moving the pointer, the way
-/// many games let you grab and drag the map.
+/// Pans by holding the middle or right mouse button and moving the pointer, the
+/// way many games let you grab and drag the map.
 final class MouseDragOutput {
     /// When the pointer gets this close to the screen edge it hops back to
     /// where the pan started and grabs again, so long pans never run out of room.
     private static let edgeMargin: CGFloat = 40
 
     private(set) var isDown = false
+    /// The button held for this pan; fixed from begin() to end() so a settings
+    /// change mid-pan still releases the button that was pressed.
+    private var button = CGMouseButton.center
     private var start = CGPoint.zero
     private var location = CGPoint.zero
     private var bounds = CGRect.zero
     private var remainder = CGVector.zero
 
-    func begin() {
+    func begin(button: CGMouseButton) {
         guard !isDown else { return }
+        self.button = button
         start = CGEvent(source: nil)?.location ?? .zero
         bounds = Self.displayBounds(containing: start).insetBy(dx: Self.edgeMargin, dy: Self.edgeMargin)
         if !bounds.contains(start) {
@@ -24,7 +28,7 @@ final class MouseDragOutput {
         }
         location = start
         remainder = .zero
-        post(.otherMouseDown, at: start)
+        post(down, at: start)
         isDown = true
     }
 
@@ -41,25 +45,29 @@ final class MouseDragOutput {
 
         var next = CGPoint(x: location.x + dx, y: location.y + dy)
         if !bounds.contains(next) {
-            post(.otherMouseUp, at: location)
+            post(up, at: location)
             post(.mouseMoved, at: start)
-            post(.otherMouseDown, at: start)
+            post(down, at: start)
             next = CGPoint(x: start.x + dx, y: start.y + dy)
         }
-        post(.otherMouseDragged, at: next, dx: dx, dy: dy)
+        post(dragged, at: next, dx: dx, dy: dy)
         location = next
     }
 
     /// Lets go and puts the pointer back where the pan began.
     func end() {
         guard isDown else { return }
-        post(.otherMouseUp, at: location)
+        post(up, at: location)
         post(.mouseMoved, at: start)
         isDown = false
     }
 
+    private var down: CGEventType { button == .right ? .rightMouseDown : .otherMouseDown }
+    private var dragged: CGEventType { button == .right ? .rightMouseDragged : .otherMouseDragged }
+    private var up: CGEventType { button == .right ? .rightMouseUp : .otherMouseUp }
+
     private func post(_ type: CGEventType, at point: CGPoint, dx: CGFloat = 0, dy: CGFloat = 0) {
-        let button: CGMouseButton = type == .mouseMoved ? .left : .center
+        let button: CGMouseButton = type == .mouseMoved ? .left : self.button
         guard let event = CGEvent(mouseEventSource: KeyOutput.source, mouseType: type,
                                   mouseCursorPosition: point, mouseButton: button)
         else { return }
