@@ -54,6 +54,18 @@ final class MouseDragOutput {
         location = next
     }
 
+    /// Puts the held pointer `offset` screen points from where the pan began
+    /// (y grows downward), kept on screen. Unlike move(by:) it never lets go
+    /// and grabs again at the edge, since that would reset the game's anchor.
+    func hold(at offset: CGVector) {
+        guard isDown else { return }
+        let next = CGPoint(x: min(max((start.x + offset.dx).rounded(), bounds.minX), bounds.maxX),
+                           y: min(max((start.y + offset.dy).rounded(), bounds.minY), bounds.maxY))
+        guard next != location else { return }
+        post(dragged, at: next, dx: next.x - location.x, dy: next.y - location.y)
+        location = next
+    }
+
     /// Lets go and puts the pointer back where the pan began.
     func end() {
         guard isDown else { return }

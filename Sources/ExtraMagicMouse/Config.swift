@@ -14,7 +14,8 @@ enum KeySet: String, Codable {
     case wasd
     /// Hold the middle mouse button and move the pointer (grab-the-map panning).
     case middleMouse
-    /// The same with the right mouse button, for games that drag the map with it.
+    /// Hold the right mouse button with the pointer offset by your push, for games
+    /// that scroll toward the pointer while it's held (C&C Generals and friends).
     case rightMouse
 
     /// The mouse button this pans with by dragging, or nil for keys.
