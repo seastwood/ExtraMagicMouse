@@ -129,10 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateIcon() {
         guard let button = statusItem?.button else { return }
         let active = config.engine.enabled && appAllowed
-        let image = NSImage(systemSymbolName: active ? "computermouse.fill" : "computermouse",
-                            accessibilityDescription: "Extra Magic Mouse")
-        image?.isTemplate = true
-        button.image = image
+        button.image = Glyph.menuBarImage(active: active)
         button.appearsDisabled = !config.engine.enabled
     }
 
