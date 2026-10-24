@@ -14,6 +14,18 @@ enum KeySet: String, Codable {
     case wasd
     /// Hold the middle mouse button and move the pointer (grab-the-map panning).
     case middleMouse
+    /// Hold the right mouse button with the pointer offset by your push, for games
+    /// that scroll toward the pointer while it's held (C&C Generals and friends).
+    case rightMouse
+
+    /// The mouse button this pans with by dragging, or nil for keys.
+    var dragButton: CGMouseButton? {
+        switch self {
+        case .arrows, .wasd: return nil
+        case .middleMouse: return .center
+        case .rightMouse: return .right
+        }
+    }
 }
 
 enum Scope: String, Codable {
@@ -97,7 +109,7 @@ struct EngineSettings: Codable, Equatable {
     var blockScroll = true
     /// Drop the Dock's Mission Control gesture (two-finger double-tap) in games.
     var blockMissionControl = true
-    /// Pointer speed multiplier for middle-mouse panning.
+    /// Pointer speed multiplier for mouse-drag panning.
     var mousePanSpeed = 1.0
     /// Assigned actions by GestureSlot raw value; missing slots use their default.
     var gestures: [String: Action] = [:]

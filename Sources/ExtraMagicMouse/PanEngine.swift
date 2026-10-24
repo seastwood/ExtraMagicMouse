@@ -26,6 +26,12 @@ final class PanEngine {
     private static let dragPointsPerSurface: CGFloat = 1500
     /// Middle-mouse joystick mode: pointer points per second per surface-width of push.
     private static let joystickPointsPerSecond: CGFloat = 6000
+    /// Right-mouse panning: how far the pointer sits from where the button went
+    /// down, in points per surface-width of push past the dead zone.
+    private static let anchorPointsPerSurface: CGFloat = 800
+    /// Right-mouse panning presses the button only once the pointer would move
+    /// this far, so a short push never reaches the game as a right click.
+    private static let anchorPressDistance: CGFloat = 6
 
     private let lock = NSLock()
     private let keys = KeyOutput()
@@ -122,8 +128,8 @@ final class PanEngine {
         let offset = CGVector(dx: point.x - origin.x, dy: point.y - origin.y)
         let threshold = CGFloat(settings.deadzone)
 
-        if settings.keys == .middleMouse {
-            panMouseLocked(offset: offset, step: step, dt: dt, threshold: threshold)
+        if let button = settings.keys.dragButton {
+            panMouseLocked(button: button, offset: offset, step: step, dt: dt, threshold: threshold)
         } else {
             let vector = settings.mode == .joystick ? offset : velocity
             let limit = settings.mode == .joystick ? threshold : threshold * Self.dragThresholdScale
@@ -158,7 +164,11 @@ final class PanEngine {
         return settings.blockMissionControl && settings.enabled && appAllowed
     }
 
-    private func panMouseLocked(offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
+    private func panMouseLocked(button: CGMouseButton, offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
+        if button == .right {
+            anchorPanLocked(offset: offset, threshold: threshold)
+            return
+        }
         let speed = CGFloat(settings.mousePanSpeed)
         var move: CGVector
         switch settings.mode {
@@ -176,9 +186,26 @@ final class PanEngine {
         if settings.invertX { move.dx = -move.dx }
         if settings.invertY { move.dy = -move.dy }
         guard move.dx != 0 || move.dy != 0 else { return }
-        mouse.begin()
+        mouse.begin(button: button)
         // Touch y grows away from you; screen y grows downward.
         mouse.move(by: CGVector(dx: move.dx, dy: -move.dy))
+    }
+
+    /// Games like C&C Generals scroll while the right button is held, toward the
+    /// pointer and faster the further it is from where the button went down. So
+    /// the pointer mirrors the push instead of travelling: hold a push and it
+    /// stays put, and the map keeps scrolling at that speed. Same in both modes.
+    private func anchorPanLocked(offset: CGVector, threshold: CGFloat) {
+        let distance = hypot(offset.dx, offset.dy)
+        let past = distance <= threshold ? 0 : (distance - threshold) / distance
+        let scale = Self.anchorPointsPerSurface * CGFloat(settings.mousePanSpeed) * past
+        var target = CGVector(dx: offset.dx * scale, dy: offset.dy * scale)
+        if settings.invertX { target.dx = -target.dx }
+        if settings.invertY { target.dy = -target.dy }
+        if !mouse.isDown && hypot(target.dx, target.dy) < Self.anchorPressDistance { return }
+        mouse.begin(button: .right)
+        // Touch y grows away from you; screen y grows downward.
+        mouse.hold(at: CGVector(dx: target.dx, dy: -target.dy))
     }
 
     private func directions(for v: CGVector, threshold: CGFloat) -> Direction {

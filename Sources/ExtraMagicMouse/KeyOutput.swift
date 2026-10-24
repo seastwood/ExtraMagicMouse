@@ -14,7 +14,7 @@ extension KeySet {
         switch self {
         case .arrows: return [(.up, 126), (.down, 125), (.left, 123), (.right, 124)]
         case .wasd: return [(.up, 13), (.down, 1), (.left, 0), (.right, 2)]
-        case .middleMouse: return []
+        case .middleMouse, .rightMouse: return []
         }
     }
 }
