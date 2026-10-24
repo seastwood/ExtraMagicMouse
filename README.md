@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Resources/AppIcon.png" alt="Extra Magic Mouse icon" width="160">
+</p>
+
 # Extra Magic Mouse
 
 A free menu bar app that turns Magic Mouse touch gestures into **held arrow keys**,
@@ -70,6 +74,11 @@ with it, macOS keeps your Accessibility permission across rebuilds.
 - **Custom Key…** opens a small window. Press the key you want, or click Cancel.
 - To tune how far you push before panning starts, use **Sensitivity**. High means a tiny push.
 - Games under CrossOver/Whisky/Wine are listed under the wrapper app's name.
+
+## App icon
+
+The app icon is drawn by `scripts/make_icon.py`. Run `python3 scripts/make_icon.py` (needs Pillow)
+to regenerate `Resources/AppIcon.icns` and the README image `Resources/AppIcon.png`.
 
 ## How it works
 
