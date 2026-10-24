@@ -44,9 +44,30 @@ Lift your fingers and the key is released.
   mid-pan, so nothing gets stuck.
 - Launch at Login.
 
-## Build & install
+## Install
 
-You need macOS 13 or later and the Command Line Tools (`xcode-select --install`). Full Xcode isn't required.
+You need macOS 13 or later.
+
+**Option 1: Terminal (one line).** Paste this into Terminal:
+
+```sh
+pkill -x ExtraMagicMouse; curl -L https://github.com/seastwood/ExtraMagicMouse/releases/latest/download/ExtraMagicMouse.zip -o /tmp/ExtraMagicMouse.zip && rm -rf "/Applications/Extra Magic Mouse.app" && ditto -x -k /tmp/ExtraMagicMouse.zip /Applications && xattr -dr com.apple.quarantine "/Applications/Extra Magic Mouse.app" && open "/Applications/Extra Magic Mouse.app"
+```
+
+**Option 2: Download.**
+
+1. Download **[ExtraMagicMouse.dmg](https://github.com/seastwood/ExtraMagicMouse/releases/latest/download/ExtraMagicMouse.dmg)**
+   from the [latest release](https://github.com/seastwood/ExtraMagicMouse/releases/latest).
+2. Open it and drag **Extra Magic Mouse** onto the **Applications** shortcut.
+3. The app isn't signed by Apple, so open Terminal once and run:
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/Extra Magic Mouse.app"
+   ```
+4. Open Extra Magic Mouse. Its icon (a mouse with four arrows) appears in the menu bar; there's no Dock icon.
+
+To update, quit it from its menu and install the same way. Your settings are kept.
+
+**Build from source.** You need the Command Line Tools (`xcode-select --install`). Full Xcode isn't required.
 
 ```sh
 git clone https://github.com/seastwood/ExtraMagicMouse.git
@@ -75,9 +96,26 @@ with it, macOS keeps your Accessibility permission across rebuilds.
 - To tune how far you push before panning starts, use **Sensitivity**. High means a tiny push.
 - Games under CrossOver/Whisky/Wine are listed under the wrapper app's name.
 
+## Releasing
+
+Run the **Release** workflow from the Actions tab (Run workflow → enter a version like `v0.5.0`), or push a tag
+(`git tag v0.5.0 && git push origin v0.5.0`). The workflow sets the app version from the tag, builds and signs the
+app, and publishes `ExtraMagicMouse.dmg` and `ExtraMagicMouse.zip` to GitHub Releases. The optional **notes** input
+sets the release notes. To build the disk image locally, run `./scripts/build_app.sh --dmg`.
+
+Releases are signed with the certificate in the `EMM_SIGNING_P12` repository secret, so macOS keeps the
+Accessibility permission across updates. To set it, upload your Mac's signing identity (created by your first
+local build):
+
+```sh
+base64 -i ~/.config/extramagicmouse/emm-signing.p12 | gh secret set EMM_SIGNING_P12 -R seastwood/ExtraMagicMouse
+```
+
+Without it, each release gets a one-off certificate and Accessibility has to be granted again after updating.
+
 ## App icon
 
-The app icon is drawn by `scripts/make_icon.py`. Run `python3 scripts/make_icon.py` (needs Pillow)
+The app icon is drawn by `scripts/make_icon.py` and the menu bar icon by `Sources/ExtraMagicMouse/Glyph.swift`. Run `python3 scripts/make_icon.py` (needs Pillow)
 to regenerate `Resources/AppIcon.icns` and the README image `Resources/AppIcon.png`.
 
 ## How it works

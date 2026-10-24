@@ -1,8 +1,20 @@
 #!/bin/zsh
 # Build "Extra Magic Mouse.app" with SwiftPM and sign it.
-# Usage: ./scripts/build_app.sh [--install]   (--install copies it to /Applications)
+# Usage: ./scripts/build_app.sh [--dmg] [--install]
+#   --dmg      also package build/ExtraMagicMouse.dmg (drag-to-Applications disk image)
+#   --install  copy the app to /Applications and launch it
 # Needs only the Xcode Command Line Tools (xcode-select --install).
 set -euo pipefail
+
+MAKE_DMG=0
+INSTALL=0
+for arg in "$@"; do
+    case "$arg" in
+        --dmg) MAKE_DMG=1 ;;
+        --install) INSTALL=1 ;;
+        *) echo "Unknown option: $arg" >&2; exit 1 ;;
+    esac
+done
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
@@ -31,9 +43,20 @@ fi
 codesign --force --sign "$IDENTITY" "${KEYCHAIN_ARG[@]}" \
     --identifier com.seth.extramagicmouse "$APP"
 codesign --verify --strict "$APP"
-echo "Built and signed: $APP"
+echo "Built and signed: $APP ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"))"
 
-if [[ "${1:-}" == "--install" ]]; then
+if [[ $MAKE_DMG == 1 ]]; then
+    DMG=build/ExtraMagicMouse.dmg
+    STAGE="$(mktemp -d)"
+    cp -R "$APP" "$STAGE/"
+    ln -s /Applications "$STAGE/Applications"
+    rm -f "$DMG"
+    hdiutil create -volname "Extra Magic Mouse" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+    rm -rf "$STAGE"
+    echo "Built $DMG"
+fi
+
+if [[ $INSTALL == 1 ]]; then
     pkill -x ExtraMagicMouse 2>/dev/null || true
     rm -rf "/Applications/Extra Magic Mouse.app"
     cp -R "$APP" /Applications/
