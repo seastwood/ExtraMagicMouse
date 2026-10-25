@@ -53,6 +53,9 @@ int EMMMultitouchStartAll(MTContactCallbackFunction callback, bool includeBuiltI
 
 void EMMMultitouchStopAll(void);
 
+// True for a built-in trackpad (false if macOS can't say).
+bool EMMMultitouchDeviceIsBuiltIn(MTDeviceRef device);
+
 // Reads an undocumented integer field of an event (Swift's CGEventField only
 // covers the documented ones). Used to tell Dock gestures apart.
 int64_t EMMEventIntegerField(CGEventRef event, uint32_t field);

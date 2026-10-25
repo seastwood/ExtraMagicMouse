@@ -5,8 +5,8 @@ import os
 /// An event tap that swallows Magic Mouse scrolling while you pan, so the
 /// game doesn't zoom or scroll at the same time. It also watches for physical
 /// clicks, so a click is never mistaken for a tap gesture, and can drop the
-/// Dock's Mission Control gesture so it doesn't open mid-game (swiping between
-/// full-screen apps still works).
+/// Magic Mouse's Mission Control gesture so it doesn't open mid-game (swiping
+/// between full-screen apps and trackpad gestures still work).
 final class ScrollBlocker {
     static let shared = ScrollBlocker()
 

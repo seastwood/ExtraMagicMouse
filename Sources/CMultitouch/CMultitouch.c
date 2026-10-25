@@ -87,6 +87,10 @@ void EMMMultitouchStopAll(void) {
     }
 }
 
+bool EMMMultitouchDeviceIsBuiltIn(MTDeviceRef device) {
+    return device && isBuiltIn && isBuiltIn(device);
+}
+
 int64_t EMMEventIntegerField(CGEventRef event, uint32_t field) {
     return CGEventGetIntegerValueField(event, (CGEventField)field);
 }

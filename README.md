@@ -44,7 +44,8 @@ Lift your fingers and the key is released.
 - **Block Mission Control in Games** (on by default) tries to keep the two-finger
   double-tap from opening Mission Control while a listed game is in front. If it still
   opens, turn off System Settings → Mouse → More Gestures → *Mission Control*.
-  Swiping left/right between full-screen apps keeps working.
+  Swiping left/right between full-screen apps keeps working, and Mission Control
+  gestures on a trackpad are never blocked.
 - **⌃⌥M** turns it on or off with a sound, so you can toggle it inside a full-screen game.
 - Releases keys and the mouse button automatically if the mouse disconnects or sleeps
   mid-pan, so nothing gets stuck.

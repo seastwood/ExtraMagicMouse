@@ -32,6 +32,9 @@ final class PanEngine {
     /// Right-mouse panning presses the button only once the pointer would move
     /// this far, so a short push never reaches the game as a right click.
     private static let anchorPressDistance: CGFloat = 6
+    /// A Dock gesture this soon after the Magic Mouse was last touched is taken
+    /// to come from the mouse; otherwise it came from the trackpad.
+    private static let mouseGestureWindow = 0.5
 
     private let lock = NSLock()
     private let keys = KeyOutput()
@@ -49,6 +52,7 @@ final class PanEngine {
     private var fast = false
     private var lastFrameUptime = 0.0
     private var lastEngagedUptime = -Double.infinity
+    private var lastMouseTouchUptime = -Double.infinity
 
     func update(settings newSettings: EngineSettings, appAllowed allowed: Bool) {
         lock.lock(); defer { lock.unlock() }
@@ -74,9 +78,10 @@ final class PanEngine {
         gestures.noteButtonPress()
     }
 
-    func handleFrame(_ touches: UnsafePointer<MTTouch>?, count: Int, timestamp: Double) {
+    func handleFrame(_ touches: UnsafePointer<MTTouch>?, count: Int, timestamp: Double, builtIn: Bool) {
         lock.lock(); defer { lock.unlock() }
         lastFrameUptime = uptime()
+        if !builtIn && count > 0 { lastMouseTouchUptime = lastFrameUptime }
         guard settings.enabled, appAllowed else {
             endGestureLocked()
             gestures.reset()
@@ -158,10 +163,12 @@ final class PanEngine {
     }
 
     /// Whether the Dock's gesture events (Mission Control and friends) should
-    /// be dropped, so a two-finger double-tap stays in the game.
+    /// be dropped, so a two-finger double-tap stays in the game. Only gestures
+    /// made on the Magic Mouse are dropped; trackpad swipes still reach the Dock.
     func shouldBlockDockGestures() -> Bool {
         lock.lock(); defer { lock.unlock() }
-        return settings.blockMissionControl && settings.enabled && appAllowed
+        guard settings.blockMissionControl && settings.enabled && appAllowed else { return false }
+        return uptime() - lastMouseTouchUptime < Self.mouseGestureWindow
     }
 
     private func panMouseLocked(button: CGMouseButton, offset: CGVector, step: CGVector, dt: CGFloat, threshold: CGFloat) {
@@ -247,7 +254,8 @@ final class PanEngine {
 
 /// C callback handed to MultitouchSupport; it can't capture, so it goes
 /// through the shared engine.
-let multitouchCallback: MTContactCallbackFunction = { _, touches, count, timestamp, _ in
-    PanEngine.shared.handleFrame(touches, count: Int(count), timestamp: timestamp)
+let multitouchCallback: MTContactCallbackFunction = { device, touches, count, timestamp, _ in
+    PanEngine.shared.handleFrame(touches, count: Int(count), timestamp: timestamp,
+                                 builtIn: EMMMultitouchDeviceIsBuiltIn(device))
     return 0
 }
