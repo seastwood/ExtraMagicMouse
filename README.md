@@ -41,7 +41,7 @@ Lift your fingers and the key is released.
 - 1-finger or 2-finger panning, four sensitivity levels, invert either direction.
 - **Only in the games you list** (default), or everywhere.
 - Blocks Magic Mouse scrolling while you pan or pinch, so the game doesn't zoom at the same time.
-- **Block Mission Control in Games** (on by default) tries to keep the two-finger
+- **Block Mission Control in Games** (off by default) tries to keep the two-finger
   double-tap from opening Mission Control while a listed game is in front. If it still
   opens, turn off System Settings → Mouse → More Gestures → *Mission Control*.
   Swiping left/right between full-screen apps keeps working, and Mission Control

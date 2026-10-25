@@ -107,8 +107,8 @@ struct EngineSettings: Codable, Equatable {
     var invertX = false
     var invertY = false
     var blockScroll = true
-    /// Drop the Dock's Mission Control gesture (two-finger double-tap) in games.
-    var blockMissionControl = true
+    /// Drop the Magic Mouse's Mission Control gesture (two-finger double-tap) in games. Off by default.
+    var blockMissionControl = false
     /// Pointer speed multiplier for mouse-drag panning.
     var mousePanSpeed = 1.0
     /// Assigned actions by GestureSlot raw value; missing slots use their default.
